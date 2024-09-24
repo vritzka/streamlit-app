@@ -10,12 +10,11 @@ from openai import AssistantEventHandler
 from tools import TOOL_MAP
 from typing_extensions import override
 from dotenv import load_dotenv
-import streamlit_authenticator as stauth
 import requests
 
 load_dotenv() 
 
-api_key = os.environ.get("BUBBLE_API_KEY")
+bubble_api_key = os.environ.get("BUBBLE_API_KEY")
 
 hide_streamlit_style = """
             <style>
@@ -50,7 +49,7 @@ if 'openai_api_key' not in st.session_state:
     url = "https://assistor.online/api/1.1/wf/get-embed?id="+unique_id
 
     headers = {
-        'Authorization': f'Bearer {api_key}'
+        'Authorization': f'Bearer {bubble_api_key}'
     }
 
     # Make the request with the authorization header
@@ -79,22 +78,9 @@ enabled_file_upload_message = os.environ.get(
     "ENABLED_FILE_UPLOAD_MESSAGE", ""
 )
 
-authentication_required = str_to_bool(os.environ.get("AUTHENTICATION_REQUIRED", False))
 
-# Load authentication configuration
-if authentication_required:
-    if "credentials" in st.secrets:
-        authenticator = stauth.Authenticate(
-            st.secrets["credentials"].to_dict(),
-            st.secrets["cookie"]["name"],
-            st.secrets["cookie"]["key"],
-            st.secrets["cookie"]["expiry_days"],
-        )
-    else:
-        authenticator = None  # No authentication should be performed
-
-client = None
-client = openai.OpenAI(api_key=st.session_state["openai_api_key"])
+openaiClient = None
+openaiClient = openai.OpenAI(api_key=st.session_state["openai_api_key"])
 assistant_id = st.session_state["chatGPT_assistant_id"]
 
 
@@ -193,7 +179,7 @@ class EventHandler(AssistantEventHandler):
                     }
                 )
 
-            with client.beta.threads.runs.submit_tool_outputs_stream(
+            with openaiClient.beta.threads.runs.submit_tool_outputs_stream(
                 thread_id=st.session_state.thread.id,
                 run_id=self.current_run.id,
                 tool_outputs=tool_outputs,
@@ -203,7 +189,7 @@ class EventHandler(AssistantEventHandler):
 
 
 def create_thread(content, file):
-    return client.beta.threads.create()
+    return openaiClient.beta.threads.create()
 
 
 def create_message(thread, content, file):
@@ -212,13 +198,13 @@ def create_message(thread, content, file):
         attachments.append(
             {"file_id": file.id, "tools": [{"type": "code_interpreter"}, {"type": "file_search"}]}
         )
-    client.beta.threads.messages.create(
+    openaiClient.beta.threads.messages.create(
         thread_id=thread.id, role="user", content=content, attachments=attachments
     )
 
 
 def create_file_link(file_name, file_id):
-    content = client.files.content(file_id)
+    content = openaiClient.files.content(file_id)
     content_type = content.response.headers["content-type"]
     b64 = base64.b64encode(content.text.encode(content.encoding)).decode()
     link_tag = f'<a href="data:{content_type};base64,{b64}" download="{file_name}">Download Link</a>'
@@ -232,7 +218,7 @@ def format_annotation(text):
         text_value = text_value.replace(annotation.text, f" [{index}]")
 
         if file_citation := getattr(annotation, "file_citation", None):
-            cited_file = client.files.retrieve(file_citation.file_id)
+            cited_file = openaiClient.files.retrieve(file_citation.file_id)
             citations.append(
                 f"[{index}] {file_citation.quote} from {cited_file.filename}"
             )
@@ -250,7 +236,7 @@ def run_stream(user_input, file, selected_assistant_id):
     if "thread" not in st.session_state:
         st.session_state.thread = create_thread(user_input, file)
     create_message(st.session_state.thread, user_input, file)
-    with client.beta.threads.runs.stream(
+    with openaiClient.beta.threads.runs.stream(
         thread_id=st.session_state.thread.id,
         assistant_id=selected_assistant_id,
         event_handler=EventHandler(),
@@ -259,7 +245,7 @@ def run_stream(user_input, file, selected_assistant_id):
 
 
 def handle_uploaded_file(uploaded_file):
-    file = client.files.create(file=uploaded_file, purpose="assistants")
+    file = openaiClient.files.create(file=uploaded_file, purpose="assistants")
     return file
 
 
@@ -281,13 +267,6 @@ if "in_progress" not in st.session_state:
 
 def disable_form():
     st.session_state.in_progress = True
-
-
-def login():
-    if st.session_state["authentication_status"] is False:
-        st.error("Username/password is incorrect")
-    elif st.session_state["authentication_status"] is None:
-        st.warning("Please enter your username and password")
 
 
 def reset_chat():
@@ -315,8 +294,6 @@ def load_chat_screen(assistant_id, assistant_title):
         )
     else:
         uploaded_file = None
-
-    #st.title(assistant_title if assistant_title else "")
 
     user_msg = st.chat_input(
         "Message",
@@ -347,18 +324,6 @@ def main():
     multi_agents = os.environ.get("OPENAI_ASSISTANTS", None)
     single_agent_id = os.environ.get("ASSISTANT_ID", None)
     single_agent_title = os.environ.get("ASSISTANT_TITLE", "Assistants API UI")
-
-    if (
-        authentication_required
-        and "credentials" in st.secrets
-        and authenticator is not None
-    ):
-        authenticator.login()
-        if not st.session_state["authentication_status"]:
-            login()
-            return
-        else:
-            authenticator.logout(location="sidebar")
 
     if assistant_id:
         load_chat_screen(assistant_id, single_agent_title)    
