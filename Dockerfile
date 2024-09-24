@@ -8,6 +8,8 @@ RUN apt update && \
     apt install -y ffmpeg && \
     pip3 install --upgrade pip && \
     pip3 install poetry && \
+    pip install openai && \
+    pip install python-dotenv && \
     poetry config virtualenvs.create false && \
     poetry install
 

@@ -4,30 +4,81 @@ import re
 import json
 
 import streamlit as st
+from urllib.parse import urlparse, parse_qs
 import openai
 from openai import AssistantEventHandler
 from tools import TOOL_MAP
 from typing_extensions import override
 from dotenv import load_dotenv
 import streamlit_authenticator as stauth
+import requests
 
-load_dotenv()
+load_dotenv() 
 
+api_key = os.environ.get("BUBBLE_API_KEY")
+
+hide_streamlit_style = """
+            <style>
+                header {visibility: hidden;}
+                .streamlit-footer {display: none;}
+                .st-emotion-cache-h4xjwg {display: none;}
+            </style>
+            """
+
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 def str_to_bool(str_input):
     if not isinstance(str_input, str):
         return False
     return str_input.lower() == "true"
 
+if 'id' not in st.query_params:
+    st.error("Missing URL parameter: id")
+    st.stop() 
+
+unique_id = st.query_params["id"] 
+if 'initial_greeting' in st.query_params:
+    initial_greeting = st.query_params["initial_greeting"]
+    if initial_greeting == '':
+        initial_greeting = False
+else:
+    initial_greeting = False
+
+if 'openai_api_key' not in st.session_state:
+    # Send a GET request to the API
+    #url = "https://assistembedd.bubbleapps.io/version-test/api/1.1/wf/get-embed?id="+unique_id
+    url = "https://assistor.online/api/1.1/wf/get-embed?id="+unique_id
+
+    headers = {
+        'Authorization': f'Bearer {api_key}'
+    }
+
+    # Make the request with the authorization header
+    response = requests.get(url, headers=headers, timeout=10)
+
+    # Check if the request was successful
+    if response.status_code == 200:
+        # Parse the JSON response if it's available
+        response = response.json()
+        #st.write(response)
+        st.session_state["openai_api_key"] = response["response"]["openai_key"]["openai_text"]
+        st.session_state["chatGPT_assistant_id"] = response["response"]["openai_key"]["assistant_id_text"]
+    else:
+        st.error("Request failed with "+{response.status_code})
+        st.stop()
+
+    if 'greeted' not in st.session_state:
+        st.session_state['greeted'] = True
+        if initial_greeting:
+            with st.chat_message("assistant"):
+                st.write(initial_greeting)
 
 # Load environment variables
-openai_api_key = os.environ.get("OPENAI_API_KEY")
-instructions = os.environ.get("RUN_INSTRUCTIONS", "")
+instructions = os.environ.get("RUN_INSTRUCTIONS", "Instructions")
 enabled_file_upload_message = os.environ.get(
     "ENABLED_FILE_UPLOAD_MESSAGE", ""
 )
-azure_openai_endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT")
-azure_openai_key = os.environ.get("AZURE_OPENAI_KEY")
+
 authentication_required = str_to_bool(os.environ.get("AUTHENTICATION_REQUIRED", False))
 
 # Load authentication configuration
@@ -43,14 +94,8 @@ if authentication_required:
         authenticator = None  # No authentication should be performed
 
 client = None
-if azure_openai_endpoint and azure_openai_key:
-    client = openai.AzureOpenAI(
-        api_key=azure_openai_key,
-        api_version="2024-05-01-preview",
-        azure_endpoint=azure_openai_endpoint,
-    )
-else:
-    client = openai.OpenAI(api_key=openai_api_key)
+client = openai.OpenAI(api_key=st.session_state["openai_api_key"])
+assistant_id = st.session_state["chatGPT_assistant_id"]
 
 
 class EventHandler(AssistantEventHandler):
@@ -271,9 +316,14 @@ def load_chat_screen(assistant_id, assistant_title):
     else:
         uploaded_file = None
 
-    st.title(assistant_title if assistant_title else "")
+    #st.title(assistant_title if assistant_title else "")
+
     user_msg = st.chat_input(
-        "Message", on_submit=disable_form, disabled=st.session_state.in_progress
+        "Message",
+        on_submit=disable_form,
+        disabled=st.session_state.in_progress,
+        max_chars=1024,
+
     )
     if user_msg:
         render_chat()
@@ -310,23 +360,8 @@ def main():
         else:
             authenticator.logout(location="sidebar")
 
-    if multi_agents:
-        assistants_json = json.loads(multi_agents)
-        assistants_object = {f'{obj["title"]}': obj for obj in assistants_json}
-        selected_assistant = st.sidebar.selectbox(
-            "Select an assistant profile?",
-            list(assistants_object.keys()),
-            index=None,
-            placeholder="Select an assistant profile...",
-            on_change=reset_chat,  # Call the reset function on change
-        )
-        if selected_assistant:
-            load_chat_screen(
-                assistants_object[selected_assistant]["id"],
-                assistants_object[selected_assistant]["title"],
-            )
-    elif single_agent_id:
-        load_chat_screen(single_agent_id, single_agent_title)
+    if assistant_id:
+        load_chat_screen(assistant_id, single_agent_title)    
     else:
         st.error("No assistant configurations defined in environment variables.")
 
