@@ -2,8 +2,11 @@ import os
 import base64
 import re
 import json
-
+import sys
+import logging
 import streamlit as st
+sys.stdout = sys.__stdout__
+sys.stderr = sys.__stderr__
 from urllib.parse import urlparse, parse_qs
 import openai
 from openai import AssistantEventHandler
@@ -14,7 +17,13 @@ import requests
 
 load_dotenv() 
 
+environment = os.environ.get("ENVIRONMENT", "test")
 bubble_api_key = os.environ.get("BUBBLE_API_KEY")
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+logging.info(f"Running: Streamlit App")
+
 
 hide_streamlit_style = """
             <style>
@@ -45,8 +54,11 @@ else:
 
 if 'openai_api_key' not in st.session_state:
     # Send a GET request to the API
-    #url = "https://assistembedd.bubbleapps.io/version-test/api/1.1/wf/get-embed?id="+unique_id
-    url = "https://assistor.online/api/1.1/wf/get-embed?id="+unique_id
+    if environment == "dev":
+        logging.info(f"Running: Streamlit App - Dev Environment")
+        url = "https://assistor.online/version-test/api/1.1/wf/get-embed?id="+unique_id
+    else:
+        url = "https://assistor.online/api/1.1/wf/get-embed?id="+unique_id
 
     headers = {
         'Authorization': f'Bearer {bubble_api_key}'
@@ -59,9 +71,14 @@ if 'openai_api_key' not in st.session_state:
     if response.status_code == 200:
         # Parse the JSON response if it's available
         response = response.json()
-        #st.write(response)
-        st.session_state["openai_api_key"] = response["response"]["openai_key"]["openai_text"]
-        st.session_state["chatGPT_assistant_id"] = response["response"]["openai_key"]["assistant_id_text"]
+        st.session_state["openai_api_key"] = response["response"]["assistor"]["openai_text"]
+        st.session_state["chatGPT_assistant_id"] = response["response"]["assistor"]["assistant_id_text"]
+        st.session_state["shopify_token"] = response["response"]["assistor"]["shopify_token_text"]
+        st.session_state["shopify_shop"] = response["response"]["assistor"]["shopify_domain_text"]
+        logging.info(f"Running: Streamlit App - Assistant ID: {st.session_state['chatGPT_assistant_id']}")
+        logging.info(f"Running: Streamlit App - Shopify Token: {st.session_state['shopify_token']}")
+        logging.info(f"Running: Streamlit App - Shopify Shop: {st.session_state['shopify_shop']}")
+        logging.info(f"Running: Streamlit App - OpenAI API Key: {st.session_state['openai_api_key']}")
     else:
         st.error("Request failed with "+{response.status_code})
         st.stop()

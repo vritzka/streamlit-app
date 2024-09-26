@@ -10,6 +10,7 @@ RUN apt update && \
     pip3 install poetry && \
     pip install openai && \
     pip install python-dotenv && \
+    pip install boto3 && \
     poetry config virtualenvs.create false && \
     poetry install
 
