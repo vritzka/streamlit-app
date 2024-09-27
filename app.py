@@ -80,7 +80,7 @@ if 'openai_api_key' not in st.session_state:
         logging.info(f"Running: Streamlit App - Shopify Shop: {st.session_state['shopify_shop']}")
         logging.info(f"Running: Streamlit App - OpenAI API Key: {st.session_state['openai_api_key']}")
     else:
-        st.error("Request failed with "+{response.status_code})
+        st.error(f"Request failed with {response.status_code}")
         st.stop()
 
     if 'greeted' not in st.session_state:
