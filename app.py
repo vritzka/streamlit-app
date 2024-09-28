@@ -37,7 +37,7 @@ hide_streamlit_style = """
             .st-emotion-cache-arzcut {padding-bottom:10px}
             .stChatMessage {padding: 0.5rem 0.3rem;}
             .st-emotion-cache-18i4tc4 {padding-bottom: 0px;}
-            .block-container {padding-top: 10px;}
+            .block-container {padding: 10px 5px;}
             </style>
             """
 
