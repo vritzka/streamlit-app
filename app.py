@@ -24,7 +24,6 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 logging.info(f"Running: Streamlit App")
 
-
 hide_streamlit_style = """
             <style>
             @media (max-width: 50.5rem) {
@@ -75,7 +74,6 @@ if 'openai_api_key' not in st.session_state:
     # Make the request with the authorization header
     response = requests.get(url, headers=headers, timeout=10)
 
-
     #logging.info(response.json())
     # Check if the request was successful
     if response.status_code == 200:
@@ -93,18 +91,17 @@ if 'openai_api_key' not in st.session_state:
         st.error(f"Request failed with {response.status_code}")
         st.stop()
 
-    if 'greeted' not in st.session_state:
-        st.session_state['greeted'] = True
-        if initial_greeting:
-            with st.chat_message("assistant"):
-                st.write(initial_greeting)
+    #if 'greeted' not in st.session_state:
+    #    st.session_state['greeted'] = True
+    #    if initial_greeting:
+    #        with st.chat_message("assistant"):
+    #            st.write(initial_greeting)
 
 # Load environment variables
 instructions = os.environ.get("RUN_INSTRUCTIONS", "Instructions")
 enabled_file_upload_message = os.environ.get(
     "ENABLED_FILE_UPLOAD_MESSAGE", ""
 )
-
 
 openaiClient = None
 openaiClient = openai.OpenAI(api_key=st.session_state["openai_api_key"])
@@ -126,7 +123,7 @@ class EventHandler(AssistantEventHandler):
     def on_text_delta(self, delta, snapshot):
         if snapshot.value:
             text_value = re.sub(
-                r"\[(.*?)\]\s*\(\s*(.*?)\s*\)", "Download Link", snapshot.value
+                r"\[(.*?)\]\s*\(\s*(.*?)\s*\)", "Link", snapshot.value
             )
             st.session_state.current_message = text_value
             st.session_state.current_markdown.markdown(
@@ -185,11 +182,12 @@ class EventHandler(AssistantEventHandler):
             tool_call.type == "function"
             and self.current_run.status == "requires_action"
         ):
-            with st.chat_message("Assistant"):
-                msg = f"### Function Calling: {tool_call.function.name}"
-                st.markdown(msg, True)
-                st.session_state.chat_log.append({"name": "assistant", "msg": msg})
-            tool_calls = self.current_run.required_action.submit_tool_outputs.tool_calls
+            with st.spinner('Wait for it...'):
+                #msg = f"Calling: {tool_call.function.name}"
+                #st.markdown(msg, True)
+                #st.session_state.chat_log.append({"name": "assistant", "msg": msg})
+                #st.session_state.chat_log.append({"name": "assistant", "msg": msg})
+                tool_calls = self.current_run.required_action.submit_tool_outputs.tool_calls
             tool_outputs = []
             for submit_tool_call in tool_calls:
                 tool_function_name = submit_tool_call.function.name
@@ -217,7 +215,6 @@ class EventHandler(AssistantEventHandler):
 
 def create_thread(content, file):
     return openaiClient.beta.threads.create()
-
 
 def create_message(thread, content, file):
     attachments = []
@@ -302,6 +299,7 @@ def reset_chat():
 
 
 def load_chat_screen(assistant_id, assistant_title):
+
     if enabled_file_upload_message:
         uploaded_file = st.sidebar.file_uploader(
             enabled_file_upload_message,
@@ -347,13 +345,16 @@ def load_chat_screen(assistant_id, assistant_title):
 
 
 def main():
-    # Check if multi-agent settings are defined
-    multi_agents = os.environ.get("OPENAI_ASSISTANTS", None)
-    single_agent_id = os.environ.get("ASSISTANT_ID", None)
+
     single_agent_title = os.environ.get("ASSISTANT_TITLE", "Assistants API UI")
 
     if assistant_id:
-        load_chat_screen(assistant_id, single_agent_title)    
+        load_chat_screen(assistant_id, single_agent_title)
+        if 'greeted' not in st.session_state:
+            run_stream("hello", None, st.session_state["chatGPT_assistant_id"])  
+            st.session_state['greeted'] = True
+            st.rerun()
+        
     else:
         st.error("No assistant configurations defined in environment variables.")
 
