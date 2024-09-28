@@ -27,9 +27,17 @@ logging.info(f"Running: Streamlit App")
 
 hide_streamlit_style = """
             <style>
-                header {visibility: hidden;}
-                .streamlit-footer {display: none;}
-                .st-emotion-cache-h4xjwg {display: none;}
+            @media (max-width: 50.5rem) {
+                .st-emotion-cache-1eo1tir {
+                     max-width: calc(0rem + 100vw);
+                }
+            }
+            header {visibility: hidden;}
+            .streamlit-footer {display: none;}
+            .st-emotion-cache-h4xjwg {display: none;}
+            .st-emotion-cache-arzcut {padding-bottom:10px}
+            .stChatMessage {padding: 0.5rem 0.3rem;}
+            .st-emotion-cache-18i4tc4 {padding-bottom: 0px;}
             </style>
             """
 
@@ -67,6 +75,8 @@ if 'openai_api_key' not in st.session_state:
     # Make the request with the authorization header
     response = requests.get(url, headers=headers, timeout=10)
 
+
+    #logging.info(response.json())
     # Check if the request was successful
     if response.status_code == 200:
         # Parse the JSON response if it's available
