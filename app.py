@@ -52,7 +52,10 @@ if 'id' not in st.query_params:
     st.error("Missing URL parameter: id")
     st.stop()
 
-country = st.query_params["country"]
+if 'country' not in st.query_params:
+    country = 'US'  
+else:
+    country = st.query_params["country"]
 
 unique_id = st.query_params["id"] 
 if 'initial_greeting' in st.query_params:
@@ -187,9 +190,6 @@ class EventHandler(AssistantEventHandler):
         ):
             with st.spinner('Wait for it...'):
                 #msg = f"Calling: {tool_call.function.name}"
-                #st.markdown(msg, True)
-                #st.session_state.chat_log.append({"name": "assistant", "msg": msg})
-                #st.session_state.chat_log.append({"name": "assistant", "msg": msg})
                 tool_calls = self.current_run.required_action.submit_tool_outputs.tool_calls
             tool_outputs = []
             for submit_tool_call in tool_calls:
