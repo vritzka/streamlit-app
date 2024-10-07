@@ -50,7 +50,9 @@ def str_to_bool(str_input):
 
 if 'id' not in st.query_params:
     st.error("Missing URL parameter: id")
-    st.stop() 
+    st.stop()
+
+country = st.query_params["country"]
 
 unique_id = st.query_params["id"] 
 if 'initial_greeting' in st.query_params:
@@ -195,6 +197,8 @@ class EventHandler(AssistantEventHandler):
                 tool_function_arguments = json.loads(
                     submit_tool_call.function.arguments
                 )
+                tool_function_arguments['country'] = country
+                logging.info(tool_function_arguments)
                 tool_function_output = TOOL_MAP[tool_function_name](
                     **tool_function_arguments
                 )

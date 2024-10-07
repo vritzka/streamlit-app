@@ -13,7 +13,7 @@ lambda_client = boto3.client(
 );
 
 # example function
-def get_recommended_products(customer_product_description):
+def get_recommended_products(customer_product_description, country):
     logging.info(f"Running: get_recommended_products {customer_product_description}")
     # AWS Lambda function name
     lambda_function_name = "recommendProducts"
@@ -22,7 +22,8 @@ def get_recommended_products(customer_product_description):
     payload = json.dumps({
         "customer_product_description": customer_product_description,
         "shopify_token": st.session_state['shopify_token'],
-        "shop": st.session_state['shopify_shop']
+        "shop": st.session_state['shopify_shop'],
+        "country": country
     })
 
     # Invoke the AWS Lambda function
